@@ -2,8 +2,7 @@
 if (PHP_SAPI != 'cli') {
 	throw new Exception("Phproject CLI must be run from the command line.");
 }
-$home = getenv("HOME");
-
+$home = defined('PHP_WINDOWS_VERSION_MAJOR') ? getenv('HOMEDRIVE') . getenv('HOMEPATH') : getenv("HOME");
 
 // Read configuration or prompt for it
 if(is_file($home . "/.phproj-cli.ini") && $config = parse_ini_file($home . "/.phproj-cli.ini")) {
@@ -11,7 +10,7 @@ if(is_file($home . "/.phproj-cli.ini") && $config = parse_ini_file($home . "/.ph
 } else {
 	$config = array();
 	$config["url"] = prompt("Phproject installation URL:");
-	if(substr($config["url"], -1, 0) != "/") {
+	if(substr($config["url"], -1) != "/") {
 		$config["url"] .= "/";
 	}
 	$config["key"] = prompt("API Key:");
@@ -56,11 +55,15 @@ while(substr($str = prompt(PHP_EOL . $user->username . "@phproject> ", null, fal
 			$response = callApi("issues.json?owner_id={$user->id}&status_closed=0");
 			foreach($response->issues as $issue) {
 				echo "#{$issue->id} - {$issue->name}" . PHP_EOL;
-				echo "  Created by {$issue->author->name}" . PHP_EOL;
-				if(isset($issue->sprint)) {
+				if(!empty($issue->author->name)) {
+					echo "  Author: {$issue->author->name}" . PHP_EOL;
+				}
+				if(!empty($issue->sprint)) {
 					echo "  Sprint: {$issue->sprint->name}";
 				}
-				echo "  Priority: {$issue->priority->name}" . PHP_EOL;
+				if(!empty($issue->priority->value)) {
+					echo "  Priority: {$issue->priority->name}" . PHP_EOL;
+				}
 			}
 			break;
 		case "browse":
@@ -70,8 +73,20 @@ while(substr($str = prompt(PHP_EOL . $user->username . "@phproject> ", null, fal
 		case "issue":
 		case "i":
 			if(!empty($params[0]) && intval($params[0])) {
-				$issue = callApi("issues/" . intval($params[0]) . ".json");
-				print_r($issue);
+				$response = callApi("issues/" . intval($params[0]) . ".json");
+				$issue = $response->issue;
+				echo "{$issue->name} (#{$issue->id})" . PHP_EOL;
+				echo "Author:          {$issue->author->name}" . PHP_EOL;
+				echo "Created:         " . date("M j, Y \\a\\t g:ia", strtotime($issue->created_date)) . PHP_EOL;
+				echo "Type:            {$issue->tracker->name}" . PHP_EOL;
+				echo "Status:          {$issue->status->name}" . PHP_EOL;
+				echo "Assignee:        {$issue->owner->name}" . PHP_EOL;
+				echo "Planned Hours:   {$issue->hours_total}" . PHP_EOL;
+				echo "Remaining Hours: {$issue->hours_remaining}" . PHP_EOL;
+				if(trim($issue->description)) {
+					echo PHP_EOL;
+					echo "Description: {$issue->description}" . PHP_EOL;
+				}
 			} else {
 				echo "Usage: issue <id>" . PHP_EOL;
 			}
