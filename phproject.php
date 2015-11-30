@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 if (PHP_SAPI != 'cli') {
 	throw new Exception("Phproject CLI must be run from the command line.");
